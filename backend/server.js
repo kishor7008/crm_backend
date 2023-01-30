@@ -112,6 +112,11 @@ app.post("/login", async (req, res) => {
     return res.status(400).json("user not found")
   } else {
     if (user && await bcrypt.compare(req.body.password, user.password)) {
+      const senderId=user._id.valueOf()
+      const response=new Conversation({
+        members:[senderId,"63d40381d0dd27e9dffa3bf4" ]
+      })
+      await response.save()
       res.status(200).json({
         _id: user._id,
         name: user.name,
