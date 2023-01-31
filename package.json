@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "short-unique-id": "^4.4.4",
-    "uuid": "^9.0.0"
-  }
-}
