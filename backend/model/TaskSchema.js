@@ -16,7 +16,11 @@ const taskSchema=mongoose.Schema({
     },
     status:{
         type:String
-    }
+    },
+    taskId:{
+        type:String
+    },
+    update:[]
 })
 
 const Task=mongoose.model("Task",taskSchema)

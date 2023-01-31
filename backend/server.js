@@ -5,8 +5,8 @@ const bcrypt = require("bcryptjs")
 const User = require("./model/UserSchema")
 const Task = require("./model/TaskSchema")
 const multer = require("multer");
-const Conversation=require("./model/Conversation")
-const Message=require("./model/Message")
+const Conversation = require("./model/Conversation")
+const Message = require("./model/Message")
 const { protect } = require('./middlewares/authMiddware')
 const geterateToken = require("./utils/generateToken")
 const {
@@ -76,108 +76,109 @@ const upload = multer({
 
 //register api
 app.post("/register", async (req, res) => {
-  try{
-  let userExist = await User.findOne({ "email": req.body.email });
-  console.log(userExist)
-  if (userExist) {
+  try {
+    let userExist = await User.findOne({ "email": req.body.email });
+    console.log(userExist)
+    if (userExist) {
 
-    res.status(401).json("already exist");
-    return;
-  } else {
-    let hashPassword = await bcrypt.hash(req.body.password, 10);
+      res.status(401).json("already exist");
+      return;
+    } else {
+      let hashPassword = await bcrypt.hash(req.body.password, 10);
 
-    let response = new User({
-      name: req.body.name,
-      email: req.body.email,
-      mobile: req.body.mobile,
-      password: hashPassword,
+      let response = new User({
+        name: req.body.name,
+        email: req.body.email,
+        mobile: req.body.mobile,
+        password: hashPassword,
 
-    })
-    console.log(response)
-    await response.save()
-    res.json(response)
+      })
+      console.log(response)
+      await response.save()
+      res.json(response)
+    }
+  } catch (err) {
+    res.status(500).json(err);
   }
-}catch(err){
-  res.status(500).json(err);
-}
 })
 
 
 //login api
 app.post("/login", async (req, res) => {
-  try{
-  const { email, password } = req.body;
-  const user = await User.findOne({ email: email });
-  if (!user) {
-    return res.status(400).json("user not found")
-  } else {
-    if (user && await bcrypt.compare(req.body.password, user.password)) {
-      const senderId=user._id.valueOf()
-      const response=new Conversation({
-        members:[senderId,"63d40381d0dd27e9dffa3bf4" ]
-      })
-      await response.save()
-      res.status(200).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        mobile: user.mobile,
-        token: geterateToken(user._id)
-      })
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      return res.status(400).json("user not found")
     } else {
-      return res.status(400).json("credential mismatch")
+      if (user && await bcrypt.compare(req.body.password, user.password)) {
+        const senderId = user._id.valueOf()
+        const response = new Conversation({
+          members: [senderId, "63d40381d0dd27e9dffa3bf4"]
+        })
+        await response.save()
+        res.status(200).json({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          mobile: user.mobile,
+          token: geterateToken(user._id)
+        })
+      } else {
+        return res.status(400).json("credential mismatch")
+      }
     }
+  } catch (err) {
+    res.status(500).json(err);
+
   }
-}catch(err){
-  res.status(500).json(err);
-  
-}
 })
 //admin send task to user through user _id
 app.post("/assign/:id", upload.single("file"), async (req, res) => {
-  try{
-  const id = req.params.id
-  const response = new Task({
-    name: req.body.name,
-    description: req.body.description,
-    file: req.file.filename,
-    user: id,
-    status: req.body.status
-  })
-  await response.save();
+  try {
+    const id = req.params.id
+    const response = new Task({
+      name: req.body.name,
+      description: req.body.description,
+      file: req.file.filename,
+      user: id,
+      status: req.body.status,
+      taskId:Math.random().toString(36).substr(2, 6).toUpperCase()
+    })
+    await response.save();
 
-  const userAssign = await User.findOne({ "_id": id })
-  const taskList = [...userAssign.task, response]
-  console.log(taskList)
-  await User.updateOne({ "_id": id }, { $set: { "task": taskList } })
-  res.json(response)
-}catch(err){
-  res.status(500).json(err);
+    const userAssign = await User.findOne({ "_id": id })
+    const taskList = [...userAssign.task, response]
+    console.log(taskList)
+    await User.updateOne({ "_id": id }, { $set: { "task": taskList } })
+    res.json(response)
+  } catch (err) {
+    res.status(500).json(err);
 
-}
+  }
 })
 
 
 //user update the task status
 
 app.post('/accept/:id', protect, async (req, res) => {
-  try{
-  let message = req.body.message;
-  console.log(message)
-  let id = req.params.id
-  const user = await User.findOne({ "_id": req.user._id })
+  try {
+    let message = req.body.message;
+    console.log(message)
+    let id = req.params.id
+    const user = await User.findOne({ "_id": req.user._id })
 
-  let task = user.task
+    let task = user.task
 
-  var index = task.map(object => object._id.valueOf()).indexOf(id)
-  console.log(index)
-  var j = task[index].status
-  console.log(j)
-  let update = await User.findByIdAndUpdate({ "_id": req.user._id }, { $set: { [`task.${index}.status`]: `${message}` } })
-  await Task.updateOne({ "_id": id }, { $set: { "status": `${message}` } })
-  res.json(message)
-  }catch(err){
-  res.status(500).json(err);
+    var index = task.map(object => object._id.valueOf()).indexOf(id)
+    console.log(index)
+    var j = task[index].status
+    console.log(j)
+    let update = await User.findByIdAndUpdate({ "_id": req.user._id }, { $set: { [`task.${index}.status`]: `${message}` } })
+    await Task.updateOne({ "_id": id }, { $set: { "status": `${message}` } })
+    res.json(message)
+  } catch (err) {
+    res.status(500).json(err);
 
   }
 })
@@ -186,53 +187,94 @@ app.post('/accept/:id', protect, async (req, res) => {
 
 
 app.get("/user/:id", protect, async (req, res) => {
-try{
-  let response = await User.find({ "_id": req.user._id })
-  let task = response[0].task
-  var index = task.map(object => object._id.valueOf()).indexOf(req.params.id)
-  console.log(index)
-  bucket.openDownloadStreamByName(response[0].task[index].file)
-    .pipe(res);
-  // res.read(response[0].task[index].file)
-}catch(err){
-  res.status(500).json(err);
+  try {
+    let response = await User.find({ "_id": req.user._id })
+    let task = response[0].task
+    var index = task.map(object => object._id.valueOf()).indexOf(req.params.id)
+    console.log(index)
+    bucket.openDownloadStreamByName(response[0].task[index].file)
+      .pipe(res);
+    // res.read(response[0].task[index].file)
+  } catch (err) {
+    res.status(500).json(err);
 
-}
+  }
 })
 
 // api for single user information
 app.get("/userinfo", protect, async (req, res) => {
-  try{
-  let response = await User.findOne({ "_id": req.user._id }).select({"password":0})
-  res.json(response)
-}catch(err){
-  res.status(500).json(err);
+  try {
+    let response = await User.findOne({ "_id": req.user._id }).select({ "password": 0 })
+    res.json(response)
+  } catch (err) {
+    res.status(500).json(err);
 
-}
+  }
 })
 
 
 //all user details 
 app.get("/allusers", async (req, res) => {
-  try{
-  let allUser = await User.find().select({"password":0})
-  res.json(allUser)
-  }catch(err){
-  res.status(500).json(err);
+  try {
+    let allUser = await User.find().select({ "password": 0 })
+    res.json(allUser)
+  } catch (err) {
+    res.status(500).json(err);
 
   }
 })
 
 // admin cheek the task staus and assign employee input the name of the task
-app.get('/task/:id',async(req,res)=>{
-try{
-  let response=await Task.findOne({"_id":req.params.id}).populate("user")
-  res.json(response)
-}catch(err){
-  res.status(500).json(err);
+app.get('/task/:id', async (req, res) => {
+  try {
+    let response = await Task.findOne({ "_id": req.params.id }).populate("user")
+    res.json(response)
+  } catch (err) {
+    res.status(500).json(err);
 
-}
+  }
 })
+
+//if the employee decline it send to other employee
+app.post("/decline/:taskId", async (req, res) => {
+  let random;
+  let response = await User.find()
+  let task = await Task.findOne({ _id: req.params.taskId })
+  task.status = "pending"
+  console.log(task)
+  User.count({}, async function (error, numOfDocs) {
+    random = Math.floor(Math.random() * numOfDocs);
+    let taskList = [...response[random].task, task]
+    await User.updateOne({ "_id": response[random]._id.valueOf() }, { $set: { "task": taskList } })
+
+    res.json(response[random])
+  });
+
+})
+
+
+app.post("/update/task",async(req,res)=>{
+  let taskId=req.body.taskId
+  let updatedList={
+    name:req.body.name,
+    email:req.body.email,
+    message:req.body.message,
+  }
+let response=await Task.findOne({"taskId":taskId})
+let details=[...response.update,updatedList]
+await Task.updateOne({"taskId":req.body.taskId},{$set:{"update":details}})
+res.send(response)
+
+
+})
+
+
+
+
+
+
+
+
 
 
 
@@ -251,7 +293,7 @@ app.post("/conversation", async (req, res) => {
 });
 
 // list of connection of current user
-app.get("/conversation/list",protect, async (req, res) => {
+app.get("/conversation/list", protect, async (req, res) => {
   console.log(req.user)
   try {
     const conversation = await Conversation.find({
@@ -294,22 +336,22 @@ app.get("/:conversationId", async (req, res) => {
     const messages = await Message.find({
       conversationId: req.params.conversationId,
     });
-    console.log(messages[messages.length-1].text)
+    console.log(messages[messages.length - 1].text)
     res.status(200).json(messages);
   } catch (err) {
     res.status(500).json(err);
   }
 });
 
-app.get("/lastmessage/:conversationId",async(req,res)=>{
+app.get("/lastmessage/:conversationId", async (req, res) => {
   try {
     const messages = await Message.find({
       conversationId: req.params.conversationId,
     });
     // console.log(messages[messages.length-1].text)
-    let lastMessage={
-      sender:messages[messages.length-1].sender,
-      text:messages[messages.length-1].text
+    let lastMessage = {
+      sender: messages[messages.length - 1].sender,
+      text: messages[messages.length - 1].text
 
     }
     res.status(200).json(lastMessage);
@@ -327,16 +369,25 @@ app.get("/", async (req, res) => {
     const user = userId
       ? await User.findById(userId)
       : await User.findOne({ username: username });
-   console.log(user)
+    console.log(user)
     res.status(200).json(user);
   } catch (err) {
     res.status(500).json(err);
   }
 });
 
+const shortUniqueId=require("short-unique-id");
+const { findByIdAndUpdate } = require("./model/TaskSchema");
+const { updateOne } = require("./model/UserSchema");
+app.get("/uniqueId",(req,res)=>{
+  const uid = new shortUniqueId();
 
+  console.log(uid())
+})
 
 
 app.listen(4000, () => {
   console.log("server started")
 })
+
+
